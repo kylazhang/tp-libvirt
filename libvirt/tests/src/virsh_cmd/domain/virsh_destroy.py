@@ -40,12 +40,16 @@ def run(test, params, env):
     elif vm_ref == "uuid":
         vm_ref = domuuid
 
+    uri = params.get("connect_uri")
+    if vm_ref.find("--graceful") > 0 and uri == "lxc:///":
+        raise error.TestNAError("lxc does not support --graceful")
+
     if libvirtd == "off":
         utils_libvirtd.libvirtd_stop()
 
     if vm_ref != "remote":
-        status = virsh.destroy(vm_ref, ignore_status=True).exit_status
-        output = ""
+        output = virsh.destroy(vm_ref, ignore_status=True)
+        status = output.exit_status
     else:
         status = 0
         try:

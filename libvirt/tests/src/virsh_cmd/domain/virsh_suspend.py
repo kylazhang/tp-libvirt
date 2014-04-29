@@ -1,3 +1,4 @@
+import logging
 from autotest.client.shared import error
 from virttest import virsh
 
@@ -33,21 +34,25 @@ def run(test, params, env):
     elif vm_ref == "uuid":
         vm_ref = domuuid
 
-    result = virsh.suspend(vm_ref, ignore_status=True, debug=True)
-    status = result.exit_status
-    output = result.stdout.strip()
-    err = result.stderr.strip()
-    if status == 0 and not vm.is_paused():
-        status = 1
+    try:
+        result = virsh.suspend(vm_ref, ignore_status=True, debug=True)
+        status = result.exit_status
+        output = result.stdout.strip()
+        err = result.stderr.strip()
+        if status == 0 and not vm.is_paused():
+            status = 1
 
-    # Check result
-    if status_error == "yes":
-        if not err:
-            raise error.TestFail("No error hint to user about bad command!")
-        if status == 0:
-            raise error.TestFail("Run successfully with wrong command!")
-    elif status_error == "no":
-        if status != 0 or output == "":
-            raise error.TestFail("Run failed with right command")
-    else:
-        raise error.TestFail("The status_error must be 'yes' or 'no'!")
+        # Check result
+        if status_error == "yes":
+            if not err:
+                raise error.TestFail("No error hint to user about bad command!")
+            if status == 0:
+                raise error.TestFail("Run successfully with wrong command!")
+        elif status_error == "no":
+            if status != 0 or output == "":
+                raise error.TestFail("Run failed with right command")
+        else:
+            raise error.TestFail("The status_error must be 'yes' or 'no'!")
+    finally:
+        if status_error == "no":
+            virsh.resume(vm_name, ignore_status=True, debug=True)

@@ -87,8 +87,13 @@ def run(test, params, env):
         result_expected = domuuid
         logging.info("%s's uuid is: %s", vm_name, domuuid)
     elif list_ref == "--title":
-        vm_backup = vm_xml.VMXML.new_from_inactive_dumpxml(vm_name)
-        virsh.desc(vm_name, "--config --title", desc)
+        vmxml = vm_xml.VMXML.new_from_inactive_dumpxml(vm_name)
+        vm_backup = vmxml.copy()
+        vmxml.title = desc
+        vmxml.define()
+        if options_ref != "inactive":
+            vm.destroy()
+            vm.start()
         result_expected = desc
         logging.info("%s's title is: %s", vm_name, desc)
     else:
@@ -122,8 +127,6 @@ def run(test, params, env):
         logging.info("Execute virsh command on remote host %s.", remote_ip)
         status, output = list_local_domains_on_remote(
             options_ref, remote_ip, remote_pwd, local_ip)
-        logging.info("Status:%s", status)
-        logging.info("Output:\n%s", output)
     else:
         if vm_ref:
             options_ref = "%s --%s" % (options_ref, vm_ref)
@@ -131,6 +134,8 @@ def run(test, params, env):
             options_ref, ignore_status=True, print_info=True)
         status = result.exit_status
         output = result.stdout.strip()
+    logging.info("Status:%s", status)
+    logging.info("Output:\n%s", output)
 
     # Recover libvirtd service status
     if libvirtd == "off":

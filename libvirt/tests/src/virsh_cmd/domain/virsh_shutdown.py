@@ -36,39 +36,43 @@ def run(test, params, env):
     elif vm_ref == "uuid":
         vm_ref = domuuid
 
-    if libvirtd == "off":
-        utils_libvirtd.libvirtd_stop()
+    try:
+        if libvirtd == "off":
+            utils_libvirtd.libvirtd_stop()
 
-    if vm_ref != "remote":
-        status = virsh.shutdown(vm_ref, ignore_status=True).exit_status
-    else:
-        remote_ip = params.get("remote_ip", "REMOTE.EXAMPLE.COM")
-        remote_pwd = params.get("remote_pwd", None)
-        local_ip = params.get("local_ip", "LOCAL.EXAMPLE.COM")
-        if remote_ip.count("EXAMPLE.COM") or local_ip.count("EXAMPLE.COM"):
-            raise error.TestNAError(
-                "Remote test parameters unchanged from default")
-        status = 0
-        try:
-            remote_uri = libvirt_vm.complete_uri(local_ip)
-            session = remote.remote_login("ssh", remote_ip, "22", "root",
-                                          remote_pwd, "#")
-            session.cmd_output('LANG=C')
-            command = "virsh -c %s shutdown %s" % (remote_uri, vm_name)
-            status = session.cmd_status(command, internal_timeout=5)
-            session.close()
-        except error.CmdError:
-            status = 1
+        if vm_ref != "remote":
+            status = virsh.shutdown(vm_ref, ignore_status=True).exit_status
+        else:
+            remote_ip = params.get("remote_ip", "REMOTE.EXAMPLE.COM")
+            remote_pwd = params.get("remote_pwd", None)
+            local_ip = params.get("local_ip", "LOCAL.EXAMPLE.COM")
+            if remote_ip.count("EXAMPLE.COM") or local_ip.count("EXAMPLE.COM"):
+                raise error.TestNAError(
+                    "Remote test parameters unchanged from default")
+            status = 0
+            try:
+                remote_uri = libvirt_vm.complete_uri(local_ip)
+                session = remote.remote_login("ssh", remote_ip, "22", "root",
+                                              remote_pwd, "#")
+                session.cmd_output('LANG=C')
+                command = "virsh -c %s shutdown %s" % (remote_uri, vm_name)
+                status = session.cmd_status(command, internal_timeout=5)
+                session.close()
+            except error.CmdError:
+                status = 1
 
-    # recover libvirtd service start
-    if libvirtd == "off":
-        utils_libvirtd.libvirtd_start()
+        # recover libvirtd service start
+        if libvirtd == "off":
+            utils_libvirtd.libvirtd_start()
 
-    # check status_error
-    status_error = params.get("status_error")
-    if status_error == "yes":
-        if status == 0:
-            raise error.TestFail("Run successfully with wrong command!")
-    elif status_error == "no":
-        if status != 0:
-            raise error.TestFail("Run failed with right command")
+        # check status_error
+        status_error = params.get("status_error")
+        if status_error == "yes":
+            if status == 0:
+                raise error.TestFail("Run successfully with wrong command!")
+        elif status_error == "no":
+            if status != 0:
+                raise error.TestFail("Run failed with right command")
+    finally:
+        if vm.state() == "paused":
+            vm.resume()

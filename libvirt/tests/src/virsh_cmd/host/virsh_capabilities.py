@@ -66,10 +66,18 @@ def run(test, params, env):
         guest_domain_type_output = guest_domain_type.getAttribute('type')
         logging.info("Hypervisor (capabilities_xml):%s",
                      guest_domain_type_output)
-        cmd_result = utils.run("virsh uri", ignore_status=True)
-        if not re.search(guest_domain_type_output, cmd_result.stdout.strip()):
+        cmd_result = virsh.canonical_uri(ignore_status=True, uri=connect_uri)
+        if not re.search(guest_domain_type_output, cmd_result):
             raise error.TestFail("The capabilities_xml gives an different "
                                  "hypervisor")
+
+        # check os_type
+        guest_os_type = dom.getElementsByTagName('os_type')[0]
+        logging.info("guest os type is %s", guest_os_type)
+        if connect_uri == "lxc:///":
+            if guest_os_type != "exe":
+                raise error.TestFail("The capailities_xml gives wrong guest "
+                                     "os_type")
 
     connect_uri = libvirt_vm.normalize_connect_uri(params.get("connect_uri",
                                                               "default"))
