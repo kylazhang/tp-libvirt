@@ -114,3 +114,5 @@ def run(test, params, env):
                 raise error.TestFail("Run failed with right command")
     finally:
         xml_backup.sync()
+        if vm.state() == "paused":
+            vm.resume()

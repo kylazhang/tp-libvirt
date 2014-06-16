@@ -55,13 +55,26 @@ def run(test, params, env):
         vmxml.set_devices(devices)
         return vmxml
 
-    fd1 = open(tmpfile1, 'w')
-    fd2 = open(tmpfile2, 'w')
-    fd3 = open(tmpfile3, 'w')
+    define_tag = False
+    vm = env.get_vm(vm_name)
+    if vm.exists():
+        if vm.is_alive():
+            vm.destroy()
+        if vm.exists():
+            define_tag = True
+            xmlfile = vm.backup_xml()
+            vm.undefine()
 
-    try:
+    if fds_options == "--pass-fds":
+        fd1 = open(tmpfile1, 'w')
+        fd2 = open(tmpfile2, 'w')
+        fd3 = open(tmpfile3, 'w')
         options = "%s %s,%s,%s %s" % (fds_options, fd1.fileno(), fd2.fileno(),
                                       fd3.fileno(), other_options)
+    else:
+        options = other_options
+
+    try:
         vmxml = container_xml_generator()
         logging.debug("xml is %s", commands.getoutput("cat %s" % vmxml.xml))
         if "--console" not in options:
@@ -76,13 +89,15 @@ def run(test, params, env):
 
         session = aexpect.ShellSession(command)
         time.sleep(2)
-        for i in (tmpfile1, tmpfile2, tmpfile3):
-            lsofcmd = "lsof|grep '^sh.*%s'" % i
-            cmd_status, cmd_output = session.cmd_status_output(lsofcmd)
-            if cmd_status != 0:
-                raise error.TestFail("Can not find file %s in container" % i)
-            else:
-                logging.info("Find open file in guest: %s", cmd_output)
+        if fds_options == "--pass-fds":
+            for i in (tmpfile1, tmpfile2, tmpfile3):
+                lsofcmd = "lsof|grep '^sh.*%s'" % i
+                cmd_status, cmd_output = session.cmd_status_output(lsofcmd)
+                if cmd_status != 0:
+                    raise error.TestFail("Can not find file %s in container"
+                                         % i)
+                else:
+                    logging.info("Find open file in guest: %s", cmd_output)
 
         session.close()
         vm = env.get_vm(vm_name)
@@ -97,9 +112,13 @@ def run(test, params, env):
             logging.info("Guest still exist after session closed")
 
     finally:
-        fd1.close()
-        fd2.close()
-        fd3.close()
-        os.remove(tmpfile1)
-        os.remove(tmpfile2)
-        os.remove(tmpfile3)
+        if fds_options == "--pass-fds":
+            fd1.close()
+            fd2.close()
+            fd3.close()
+            os.remove(tmpfile1)
+            os.remove(tmpfile2)
+            os.remove(tmpfile3)
+        if define_tag == True:
+            vm.destroy()
+            vm.define(xmlfile)

@@ -1,9 +1,10 @@
 import os
 import time
+import logging
 from virttest import remote
-
 from autotest.client.shared import error
-from virttest import virsh, aexpect, utils_libvirtd
+from virttest import virsh, aexpect, utils_libvirtd, libvirt_vm
+from virttest.libvirt_xml import vm_xml
 
 
 def run(test, params, env):
@@ -22,16 +23,15 @@ def run(test, params, env):
 
     domid = vm.get_id()
     domuuid = vm.get_uuid()
-    vcpucount_result = virsh.vcpucount(vm_name, options="--config --maximum")
-    if vcpucount_result.exit_status:
-        raise error.TestError("Failed to get vcpucount. Detail:\n%s"
-                              % vcpucount_result)
-    original_vcpu = vcpucount_result.stdout.strip()
+    vmxml = vm_xml.VMXML.new_from_dumpxml(vm_name)
+    original_vcpu = str(vmxml['vcpu'])
     expected_vcpu = str(int(original_vcpu) + 1)
 
     libvirtd = params.get("libvirtd", "on")
     vm_ref = params.get("edit_vm_ref")
     status_error = params.get("status_error")
+    connect_uri = libvirt_vm.normalize_connect_uri(params.get("connect_uri",
+                                                              "default"))
 
     def modify_vcpu(source, edit_cmd):
         """
@@ -43,14 +43,19 @@ def run(test, params, env):
         """
         session = aexpect.ShellSession("sudo -s")
         try:
-            session.sendline("virsh edit %s" % source)
+            if connect_uri != None:
+                virsh_cmd = "virsh -c %s" % connect_uri
+            else:
+                virsh_cmd = "virsh"
+            session.sendline("%s edit %s" % (virsh_cmd, source))
             session.sendline(edit_cmd)
             session.send('\x1b')
             session.send('ZZ')
             remote.handle_prompts(session, None, None, r"[\#\$]\s*$")
             session.close()
             return True
-        except:
+        except Exception, e:
+            logging.debug("Fail to execute session command:%s", e)
             return False
 
     def edit_vcpu(source, guest_name):
@@ -103,7 +108,8 @@ def run(test, params, env):
             edit_status = virsh.edit(vm_ref).exit_status
             if edit_status == 0:
                 status = True
-    except:
+    except Exception, detail:
+        logging.debug("Fail detail: %s", detail)
         status = False
 
     # recover libvirtd service start
