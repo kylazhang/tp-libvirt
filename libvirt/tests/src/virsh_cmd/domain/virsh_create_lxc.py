@@ -4,7 +4,7 @@ import commands
 import time
 from autotest.client.shared import error
 from virttest.libvirt_xml import vm_xml
-from virttest import virsh, aexpect
+from virttest import virsh, aexpect, utils_test
 from virttest.libvirt_xml.devices.emulator import Emulator
 from virttest.libvirt_xml.devices.console import Console
 
@@ -98,8 +98,12 @@ def run(test, params, env):
                                          % i)
                 else:
                     logging.info("Find open file in guest: %s", cmd_output)
-
-        session.close()
+            session.close()
+        else:
+            status = utils_test.libvirt.verify_virsh_console(
+                session, "root", "redhat", timeout=10, debug=True)
+            if not status:
+                raise error.TestFail("Verify virsh console failed")
         vm = env.get_vm(vm_name)
         if "--autodestroy" in options:
             if vm.is_alive():
