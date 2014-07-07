@@ -74,6 +74,9 @@ def run(test, params, env):
     if libvirtd == "off":
         utils_libvirtd.libvirtd_start()
 
+    if vm.state() == "paused":
+        vm.resume()
+
     # check status_error
     if status_error == "yes":
         if status == 0:
