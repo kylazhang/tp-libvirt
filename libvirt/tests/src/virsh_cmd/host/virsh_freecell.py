@@ -33,6 +33,10 @@ def run(test, params, env):
     if libvirtd == "off":
         utils_libvirtd.libvirtd_start()
 
+    # start service second time to avoid libvirtd start problem
+    if libvirtd == "off":
+        utils_libvirtd.libvirtd_start()
+
     # Check the output
     if virsh.has_help_command('numatune'):
         OLD_LIBVIRT = False
