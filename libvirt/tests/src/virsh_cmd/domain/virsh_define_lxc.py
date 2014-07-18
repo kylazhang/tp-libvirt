@@ -93,8 +93,12 @@ def run(test, params, env):
                       "session required pam_loginuid.so"]:
                 utils.run("sed -i 's/#%s/%s/g' %s/etc/pam.d/login" %
                           (i, i, install_root))
-            session = aexpect.ShellSession("chroot %s /bin/passwd root" %
-                                           install_root)
+            if os.path.exists("/bin/passwd"):
+                passwd_file = "/bin/passwd"
+            else:
+                passwd_file = "/usr/bin/passwd"
+            session = aexpect.ShellSession("chroot %s %s root" %
+                                           (install_root, passwd_file))
             while True:
                 match, text = session.read_until_last_line_matches(
                     [r"New password:", r"Retype new password:"],
