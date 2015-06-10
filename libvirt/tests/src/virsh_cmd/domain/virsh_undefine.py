@@ -95,8 +95,9 @@ def run(test, params, env):
     vm_exist = virsh.domain_exists(vm.name)
 
     # Check if xml file exists.
+    driver = virsh.canonical_uri(ignore_status=False).split(":")[0]
     xml_exist = False
-    if (os.path.exists("/etc/libvirt/qemu/%s.xml" % vm_name) or
+    if (os.path.exists("/etc/libvirt/%s/%s.xml" % (driver, vm_name)) or
             os.path.exists("/etc/xen/%s" % vm_name)):
         xml_exist = True
 
